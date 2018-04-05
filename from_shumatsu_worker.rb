@@ -1,6 +1,8 @@
+$LOAD_PATH.unshift(File.dirname(__FILE__))
 require 'open-uri'
 require 'nokogiri'
-require 'concern/aws_config'
+require 'concerns/aws_config'
+require 'concerns/standard_class_methods'
 
 class FromShumatsuWorker
   include StandardClassMethods
@@ -12,12 +14,12 @@ class FromShumatsuWorker
     robotex = Robotex.new
     return unless robotex.allowed?(@@base_uri)
     @s3 = Aws::S3::Resource.new(
-      region: 'ap-northeast-1' ,
+      region: 'ap-northeast-1',
       retry_limit: 2,
       http_open_timeout: 5
     )
 
-    doc = access_site("/list")
+    doc = access_site('/list')
     set_last_page_number(doc)
 
     @current_max_page_number.time do |i|
