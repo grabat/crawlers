@@ -1,18 +1,10 @@
-$LOAD_PATH.unshift(File.dirname(__FILE__))
-require 'open-uri'
-require 'nokogiri'
-require 'concerns/aws_config'
-require 'concerns/standard_class_methods'
+require './base_crawler'
+require 'pry-byebug'
 
-class FromShumatsuWorker
-  include StandardClassMethods
-  attr_reader :current_page_number, :base_uri
-  @@user_agent = 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36'
-  @@base_uri = 'https://shuuumatu-worker.jp'
-
+class FromShumatsuWorker < BaseCralwer
   def call
-    robotex = Robotex.new
-    return unless robotex.allowed?(@@base_uri)
+    robotex = ::Robotex.new
+    return unless robotex.allowed?(base_uri)
     @s3 = Aws::S3::Resource.new(
       region: 'ap-northeast-1',
       retry_limit: 2,
@@ -20,26 +12,30 @@ class FromShumatsuWorker
     )
 
     doc = access_site('/list')
-    set_last_page_number(doc)
+    last_page_number(doc)
 
-    @current_max_page_number.time do |i|
+    1.upto(@current_max_page_number) do |i|
       doc = access_site("/list/page/#{i}")
-      items = doc.at_xpath("div[@class='m-worklist__caption']/a")
+      items = doc.xpath("//div[@class='m-worklist__caption']/a")
       items.each do |item|
-        detail_page = access_site(item['href'])
-        @s3.put(body: detail.document)
+        detail_page = access_site("/" + item['href'].match(/\d+/)[0])
+        @s3.put(body: detail_page.document)
       end
     end
   end
 
-  def set_last_page_number(doc)
+  def last_page_number(doc)
     pagenates = doc.xpath("//div[@class='yutopro_pagenavi']/a")
 
     loop do
       begin
-        max_page_number = pagenates.map { |page| page['href'] =~ /page=(\d+)\z/ }.compact.max
+        max_page_number = pagenates.map do |page|
+          page['href'] =~ /page=(\d+)\z/
+        end.compact.max
         access_site("page/#{current_max_page_number}")
-        @current_max_page_number = pagenates.map { |page| page['href'] =~ /page=(\d+)\z/ }.compact.max
+        @current_max_page_number = pagenates.map do |page|
+          page['href'] =~ /page=(\d+)\z/
+        end.compact.max
         break if max_page_number == current_max_page_number
       rescue StandardError
         @current_max_page_number = 1 if max_page_number.nil?
@@ -49,11 +45,14 @@ class FromShumatsuWorker
   end
 
   def access_site(path)
-    html = open(@@base_uri + path.to_s,
-                'User-Agent' => @@use_agent) do |f|
+    binding.pry
+    html = open(base_uri + path.to_s,
+                'User-Agent' => user_agent) do |f|
       @charset = f.charset
       f.read
     end
     Nokogiri::HTML.parse(html, nil, @charset)
   end
 end
+
+FromShumatsuWorker.call

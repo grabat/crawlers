@@ -4,8 +4,8 @@ module StandardClassMethods
   end
 
   module ClassMethods
-    def call(**args)
-      new.call(args)
+    def call
+      new.call
     end
   end
 end
