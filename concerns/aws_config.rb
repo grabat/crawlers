@@ -1,14 +1,6 @@
 require 'aws-sdk'
 
 Aws.config.update(
-  region: 'us-west-2',
-  credentials: Aws::Credentials.new('akid', 'secret')
+  region: 'ap-northeast-1',
+  credentials: Aws::Credentials.new(ENV['AWS_ACCESS_KEY'], ENV['AWS_SECRET_ACCESS_KEY'])
 )
-
-class S3Uploader
-  attr_reader :upload_id
-  def initialize
-    client = Aws::S3::Client.new
-  end
-end
-

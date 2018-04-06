@@ -20,7 +20,7 @@ class FromShumatsuWorker < BaseCralwer
       items = doc.xpath("//div[@class='m-worklist__caption']/a")
       items.each do |item|
         detail_page = access_site('/' + item['href'].match(/\d+/)[0])
-        file = @bucket.object(item['href'].match(/\d+/)[0])
+        file = @bucket.object(item['href'].match(/\d+/)[0] + '.html')
         file.put(body: detail_page.document.to_s)
       end
     end
