@@ -3,6 +3,7 @@ require 'pry-byebug'
 
 class FromShumatsuWorker < BaseCralwer
   def call
+    @current_max_page_number = 1
     robotex = ::Robotex.new
     return unless robotex.allowed?(base_uri)
     @s3 = Aws::S3::Resource.new(
@@ -10,44 +11,41 @@ class FromShumatsuWorker < BaseCralwer
       retry_limit: 2,
       http_open_timeout: 5
     )
+    @bucket = @s3.bucket('grabat-crawler')
 
-    doc = access_site('/list')
-    last_page_number(doc)
+    last_page_number
 
     1.upto(@current_max_page_number) do |i|
       doc = access_site("/list/page/#{i}")
       items = doc.xpath("//div[@class='m-worklist__caption']/a")
       items.each do |item|
-        detail_page = access_site("/" + item['href'].match(/\d+/)[0])
-        @s3.put(body: detail_page.document)
+        detail_page = access_site('/' + item['href'].match(/\d+/)[0])
+        file = @bucket.object(item['href'].match(/\d+/)[0])
+        file.put(body: detail_page.document.to_s)
       end
     end
   end
 
-  def last_page_number(doc)
-    pagenates = doc.xpath("//div[@class='yutopro_pagenavi']/a")
-
+  def last_page_number
     loop do
       begin
-        max_page_number = pagenates.map do |page|
-          page['href'] =~ /page=(\d+)\z/
-        end.compact.max
-        access_site("page/#{current_max_page_number}")
-        @current_max_page_number = pagenates.map do |page|
-          page['href'] =~ /page=(\d+)\z/
-        end.compact.max
-        break if max_page_number == current_max_page_number
+        doc = access_site("/list/page/#{@current_max_page_number}")
+        pagenates = doc.xpath("//div[@class='yutopro_pagenavi']/a")
+        current_max_page = pagenates.map do |page|
+          page['href'] =~ /page\/(\d+)\z/
+        end.compact.max || 1
+        break if current_max_page == @current_max_page_number || @current_max_page_number == 1
+        @current_max_page_number = current_max_page
       rescue StandardError
-        @current_max_page_number = 1 if max_page_number.nil?
         break
       end
     end
   end
 
   def access_site(path)
-    binding.pry
     html = open(base_uri + path.to_s,
-                'User-Agent' => user_agent) do |f|
+                'User-Agent' => user_agent,
+                ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE) do |f|
       @charset = f.charset
       f.read
     end
