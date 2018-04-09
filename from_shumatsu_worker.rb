@@ -16,14 +16,15 @@ class FromShumatsuWorker < BaseCralwer
     super
   end
 
-  def call
+  def run
     last_page_number
     crawl
   end
 
+  private
+
   def last_page_number
     loop do
-      puts @current_max_page_number
       doc = access_site("/list/page/#{@current_max_page_number}")
       pagenates = doc.xpath("//div[@class='yutopro_pagenavi']/a")
       current_max_page = pagenates.map do |page|
@@ -66,4 +67,4 @@ class FromShumatsuWorker < BaseCralwer
   end
 end
 
-FromShumatsuWorker.call
+FromShumatsuWorker.run
