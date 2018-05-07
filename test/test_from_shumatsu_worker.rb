@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative '../from_shumatsu_worker'
 require 'minitest/autorun'
 

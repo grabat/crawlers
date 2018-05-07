@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 require 'open-uri'
 require 'nokogiri'
@@ -5,7 +7,8 @@ require 'robotex'
 require 'concerns/aws_config'
 require 'concerns/standard_class_methods'
 
-class BaseCralwer
+# Abstract class(BaseClass))
+class BaseCrawler
   include StandardClassMethods
   attr_reader :current_page_number
 
